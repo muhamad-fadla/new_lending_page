@@ -1,6 +1,6 @@
 const express = require('express');
 const expressSitemapXml = require('express-sitemap-xml')
-const dnsPrefetchControl = require('dns-prefetch-control')
+
 const fs = require('fs')
 const app = express();
 const path = require('path')
@@ -21,7 +21,6 @@ app.set('cache', true)
 app.disable('x-powered-by')
 
 app.use(expressSitemapXml(getUrls, 'https://my-topup.store'))
-app.use(dnsPrefetchControl({ allow: true }))
 
 app.use(express.static(path.join(__dirname, 'public')))
 
