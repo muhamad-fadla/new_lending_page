@@ -25,14 +25,14 @@ app.use(dnsPrefetchControl({ allow: true }))
 
 app.use(express.static(path.join(__dirname, 'public')))
 
-app.get('/*', async (req,res) => {
+app.get('*', async (req,res) => {
 	let file;
 
 	console.log(typeof cached == "undefined")
 
 	if(typeof cached == 'undefined'){
 		console.log('Storage cached')
-		file = fs.readFileSync(path.join(__dirname, 'public/dot.html'));
+		file = fs.readFileSync(path.join(__dirname, 'public/index.html'));
 		cached = file;
 	}else{
 		console.log('use cached')
