@@ -1,66 +1,107 @@
-const express = require('express');
-const expressSitemapXml = require('express-sitemap-xml')
-
-const fs = require('fs')
-const app = express();
-const path = require('path')
-
-function getUrls(){
-	return [
-		{
-  			url: '/',
-	  		lastMod: new Date('2021-09-01').toISOString(), // optional (specify `true` for today's date)
-	  		changeFreq: 'weekly', // optional
-	  		// priority: 1,
-		}
-	];
+/**
+ * First Setup
+ */
+let BASE_URL = "https://my-topup.store";
+let DOMAIN = "my-topup.store";
+let Cached = {
+	view: {
+		Index: undefined
+	}
 }
 
-app.set('env', 'production')
-app.set('cache', true)
-app.disable('x-powered-by')
 
-app.use(expressSitemapXml(getUrls, 'https://my-topup.store'))
+/**
+ * Server Setup
+ */
+const Fastify = require('fastify')
+const fs = require('fs');
+const path = require('path');
+let fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
-app.use((req,res,next) => {
-	 res.setHeader('Access-Control-Allow-Credentials', true)
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  // another common pattern
-  // res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  )
-  if (req.method === 'OPTIONS') {
-    res.status(200).end()
-    return
-  }
 
-  next();
-})
+/**
+ * Build Setup
+ */
+const PORT = process.env.PORT || 3000;
+const SiteMapPlugin = require('express-sitemap-xml');
+const { AwesomeGraphQLClient } = require('awesome-graphql-client');
+const StaticMap = require("./static_map.js");
 
-app.use(express.static(path.join(__dirname, 'public')))
+let GraphClient = new AwesomeGraphQLClient({
+					endpoint: 'https://api-ap-northeast-1.graphcms.com/v2/ckuia1cja13ab01z0ddj67tnk/master',
+					fetch
+				})
 
-app.get('*', async (req,res) => {
-	let file;
 
-	console.log(typeof cached == "undefined")
+/**
+ * SchemaQL
+ */
+let ArticleSchema = require('./Schema/Articles.js').schema()
 
-	if(typeof cached == 'undefined'){
-		console.log('Storage cached')
-		file = fs.readFileSync(path.join(__dirname, 'public/index.html'));
-		cached = file;
-	}else{
-		console.log('use cached')
-		file = cached;
+
+/**
+ * Sitemap
+ */
+async function sitemap(){
+	let sitemap = StaticMap.map;
+
+
+	let $articles = await GraphClient.request(ArticleSchema);
+	
+	for (var i = 0; i < $articles['posts'].length; i++) {
+		sitemap.push({
+			url: `${BASE_URL}/blog/${$articles['posts'][i].url}`,
+			lastMod: $articles['posts'][i].lastMod
+		});
 	}
 
+	return sitemap;
+}
 
-	res.status(200).end(file);
-})
+
+/**
+ * Routes
+ */
+async function routes(server){
+
+	server.get('/robots.txt', (req,reply) => {
+		return reply.sendFile('./robots.txt');
+	})
+
+	server.get("/favicon.ico", (req,reply) => {
+		return reply.sendFile('./favicon.ico');
+	});
+
+	server.get("/*", async (req,reply) => {
+		return reply.sendFile('./index.html');
+	});
+}
 
 
-const port = process.env.PORT || 3000;
 
-app.listen(port, () => console.log(`Server running on ${port}, http://localhost:${port}`));
+
+/**
+ * Build
+ */
+async function build () {
+  	const fastify = Fastify()
+  	await fastify.register(require('fastify-express'))
+
+  	fastify.use(SiteMapPlugin(sitemap, 'https://my-topup.store'))
+
+  	fastify.register(require('fastify-static'), {
+	  	root: path.join(__dirname, 'public'),
+	  	prefix: '/__miaw'
+	})
+  	
+  	fastify.express.disabled('x-powered-by') // true
+
+  	await routes(fastify);
+
+  	return fastify
+}
+
+
+build()
+  .then(fastify => fastify.listen(PORT), console.log(`Server running on PORT:${PORT}`))
+  .catch(console.log)
