@@ -3,11 +3,7 @@
  */
 let BASE_URL = "https://my-topup.store";
 let DOMAIN = "my-topup.store";
-let Cached = {
-	view: {
-		Index: undefined
-	}
-}
+
 
 
 /**
