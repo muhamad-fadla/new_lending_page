@@ -1,8 +1,8 @@
 /**
  * First Setup
  */
-let BASE_URL = "https://my-topup.store";
-let DOMAIN = "my-topup.store";
+let BASE_URL = "https://www.sociality.my.id";
+let DOMAIN = "sociality.my.id";
 
 
 
